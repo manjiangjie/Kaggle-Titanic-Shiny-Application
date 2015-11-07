@@ -4,6 +4,9 @@ setwd("~/Desktop/Coding/Projects/Kaggle-Titanic")
 train <- read.csv("~/Desktop/Coding/Projects/Kaggle-Titanic/data/train.csv")
 test <- read.csv("~/Desktop/Coding/Projects/Kaggle-Titanic/data/test.csv")
 
+# check dataframe
+str(train)
+table(train$Survived)
 
 # The disaster was famous for saving “women and children first” 
 # So first summary the gender of passagers to see if any patterns:
@@ -20,4 +23,4 @@ train$Children <- 0
 train$Children[train$Age < 18] <- 1
 
 submit <- data.frame(PassengerId = test$PassengerId, Survived = test$Survived)
-write.csv(submit, file = "all_die.csv", row.names = FALSE)
+write.csv(submit, file = "submit.csv", row.names = FALSE)
