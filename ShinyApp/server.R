@@ -4,61 +4,84 @@ library(rattle)
 library(rpart.plot)
 library(RColorBrewer)
 library(ggplot2)
+library(randomForest)
 source("preprocess.R")
 
 shinyServer(function(input, output) {
-  output$dataBoxPlot <- renderPlot({                         
-    
-    #ggplot() +
-    # geom_point(data = train, aes(x = gp, y = y)) +
-    #geom_point(data = ds, aes(x = gp, y = mean),
-    #             colour = 'red', size = 3) +
-    # geom_errorbar(data = ds, aes(x = gp, y = mean,
-    #                             ymin = mean - sd, ymax = mean + sd),
-    #             colour = 'red', width = 0.4)
-    qplot(Age, data=train, geom="density", fill=Pclass, alpha=I(.5),
-          main="Age distribution by class", xlab="Age",
-          ylab="Density")
+  output$ageDensity <- renderPlot({                         
+    plot(density(train$Age, na.rm = TRUE), main = "Age distribution by class")
   })
   
   output$dataPlot <- renderPlot({                         
-    ggplot(train, aes_string(x=input$x, y=input$y, shape=input$toPlot, color=input$toPlot), facets=paste(input$facets, collapse="~")) + geom_point(size=I(3), xlab="XX", ylab="YY") + facet_grid(paste(input$facets, collapse="~"), scales="free", space="free")
+    ggplot(train, aes_string(x = input$x, y = input$y, shape = input$toPlot, color = input$toPlot), facets = paste(input$facets, collapse = "~")) + geom_point(size = I(3), xlab = "XX", ylab = "YY") + facet_grid(paste(input$facets, collapse = "~"), scales = "free", space = "free")
   })
   
   output$ageHist <- renderPlot({
-    x    <- train$Age
-    bins <- seq(min(x, na.rm=T), max(x, na.rm=T), length.out = input$ageBins + 1)
-    
-    # draw the histogram with the specified number of bins
-    hist(x, breaks = bins, col = 'darkgray', border = 'white') 
+    x <- train$Age
+    bins <- seq(min(x, na.rm = TRUE), max(x, na.rm = TRUE), length.out = input$ageBins + 1)
+    hist(x, breaks = bins, col = "skyblue", border = "white") 
   })
   
-  fit <- reactive({
-    variables <- paste(input$treeVariables, collapse="+")
-    #avoid error if no box is checked
-    if (nchar(variables)<2){
-      variables<-"Sex"
+  fit.rp <- reactive({
+    variables <- paste(input$treeVariables, collapse = "+")
+    if (nchar(variables) < 2){
+      variables <- "Sex"
     }
     args <- list(paste("as.factor(Survived) ~ ", variables))
-    
-    args$data<-train
-    args$method<-"class"
-    # computing the decision tree
+    args$data <- train
+    args$method <- "class"
     do.call(rpart, args)
   })
   
-  output$decisionTree <- renderPlot({  
-    fancyRpartPlot(fit())     
+  fit.rf <- reactive({
+    variables <- paste(input$treeVariables, collapse = "+")
+    if (nchar(variables) < 2){
+      variables <- "Sex"
+    }
+    args <- list(as.formula(paste("as.factor(Survived) ~ ", variables)))
+    args$data <- train
+    args$importance <- TRUE
+    args$ntree <- 1000
+    args$keep.forest <- FALSE
+    args$proximity <- TRUE
+    do.call(randomForest, args)
   })
   
-  output$didHeSurvive <- renderText({
-    FamilyID2<-paste(input$FamilyName,input$FamilySize)
-    toTest <- data.frame(Sex=input$Sex, Age=input$Age, Pclass=input$Pclass, SibSp=input$Siblings,
-                         Fare=input$Fare, Embarked=input$Embarked, Title=input$Title, input$FamilySize, FamilyID2=FamilyID2)
-    toTest$Pclass<-factor(toTest$Pclass, levels=c(1,2,3), labels=c("First class", "Second class", "Third class"))
-    #fit is shared bw the "did he survive" and "decision tree" panels
-    Prediction <- predict(fit(), toTest, type="class")
-    write.csv(Prediction, "prediction.csv")
-    return(as.character(Prediction))
+  output$decisionTree <- renderPlot({  
+    fancyRpartPlot(fit.rp())     
   })
+  
+  output$randomForest1 <- renderPlot({  
+    set.seed(123)
+    plot(fit.rf(), log = "y")
+  })
+  
+  output$randomForest2 <- renderPlot({  
+    set.seed(123)
+    MDSplot(fit.rf(), train$Survived)
+  })
+  
+  output$randomForest3 <- renderPlot({  
+    set.seed(123)
+    varImpPlot(fit.rf())
+  })
+  
+  output$Survival <- renderText({
+    FamilyID2 <- paste(input$FamilyName,input$FamilySize)
+    toTest <- data.frame(Sex = input$Sex, Age = input$Age, Pclass = input$Pclass, SibSp = input$Siblings, Fare = input$Fare, Embarked = input$Embarked, Title = input$Title, input$FamilySize, FamilyID2 = FamilyID2)
+    predict <- predict(fit.rp(), toTest, type = "class")
+    return(as.character(predict))
+  })
+  
+  output$Status <- renderImage({
+    FamilyID2 <- paste(input$FamilyName,input$FamilySize)
+    toTest <- data.frame(Sex = input$Sex, Age = input$Age, Pclass = input$Pclass, SibSp = input$Siblings, Fare = input$Fare, Embarked = input$Embarked, Title = input$Title, input$FamilySize, FamilyID2 = FamilyID2)
+    predict <- predict(fit.rp(), toTest, type = "class")
+    if (as.character(predict) == "Survived") {
+      return(list(src = "www/survive.jpg", height = 300, width = 400))
+    }
+    else {
+      return(list(src = "www/die.jpg", height = 300, width = 400))
+    }
+  }, deleteFile = FALSE)
 })
