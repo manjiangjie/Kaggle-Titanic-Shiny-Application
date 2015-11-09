@@ -26,20 +26,21 @@ library(caret)
 library(randomForest)
 library(party)
 library(rpart.plot)
+library(rattle)
 library(ggplot2)
 ```
 
 Set working directory and import datafiles to the top of the file:
 
 ```{r}
-setwd("~/Desktop/Coding/Projects/Kaggle-Titanic")
-train <- read.csv("~/Desktop/Coding/Projects/Kaggle-Titanic/data/train.csv")
-test <- read.csv("~/Desktop/Coding/Projects/Kaggle-Titanic/data/test.csv")
+setwd("~/Desktop/Coding/Projects/Kaggle-Titanic/ShinyApp")
+train <- read.csv("data/train.csv")
+test <- read.csv("data/test.csv")
 ```
 
 First, check dataframe and see how many people survived:
 
-```{r, echo=FALSE}
+```{r}
 str(train)
 str(test)
 table(train$Survived)
@@ -48,7 +49,6 @@ table(train$Survived)
 According to Kaggle's description, some groups of people were more likely to survive than others, such as women, children, and the upper-class. Summary and plot the gender and class to see if there are any patterns:
 
 ```{r, echo=FALSE}
-summary(train)
 GenderSurvival <- table(train$Survived, train$Sex)
 PclassSurvival <- table(train$Survived, train$Pclass)
 prop.table(GenderSurvival, 2)
@@ -92,7 +92,7 @@ combi$FamilyID <- factor(combi$FamilyID)
 
 Check to see if there are any missing values and replace it with mean:
 
-```{r, echo=FALSE}
+```{r}
 summary(combi)
 ```
 
@@ -108,7 +108,7 @@ combi$FamilyID2[combi$FamilySize <= 3] <- 'Small'
 combi$FamilyID2 <- factor(combi$FamilyID2)
 ```
 
-Build models:
+Build models (maybe a bit slow for some models):
 
 ```{r}
 # partition data
@@ -133,6 +133,13 @@ test$Survived <- predict(fit.rf, test)
 set.seed(123)
 fit.ct <- cforest(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + Title + FamilySize + FamilyID, data = train, controls = cforest_unbiased(ntree = 3000, mtry = 3))
 test$Survived <- predict(fit.ct, test, OOB = TRUE, type = "response")
+```
+
+Decision Tree Model:
+
+```{r, echo = FALSE}
+fit.rp <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + Title + FamilySize + FamilyID, data = train, method = "class")
+fancyRpartPlot(fit.rp)
 ```
 
 Save model and submit:

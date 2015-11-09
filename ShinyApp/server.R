@@ -21,19 +21,16 @@ shinyServer(function(input, output) {
           ylab="Density")
   })
   
-  output$dataPlot1 <- renderPlot({                         
-    
-    q<-ggplot(train, aes_string(x=input$x, y=input$y, shape=input$toPlot, color=input$toPlot), facets=paste(input$facets, collapse="~"))
-    q<-q + geom_point(size=I(3), xlab="XX", ylab="YY") +
-      facet_grid(paste(input$facets, collapse="~"), scales="free", space="free")
-    print(q)
+  output$dataPlot <- renderPlot({                         
+    ggplot(train, aes_string(x=input$x, y=input$y, shape=input$toPlot, color=input$toPlot), facets=paste(input$facets, collapse="~")) + geom_point(size=I(3), xlab="XX", ylab="YY") + facet_grid(paste(input$facets, collapse="~"), scales="free", space="free")
   })
   
   output$ageHist <- renderPlot({
     x    <- train$Age
     bins <- seq(min(x, na.rm=T), max(x, na.rm=T), length.out = input$ageBins + 1)
+    
     # draw the histogram with the specified number of bins
-    hist(x, breaks = bins, col = 'skyblue', border = 'white') 
+    hist(x, breaks = bins, col = 'darkgray', border = 'white') 
   })
   
   fit <- reactive({
@@ -43,6 +40,7 @@ shinyServer(function(input, output) {
       variables<-"Sex"
     }
     args <- list(paste("as.factor(Survived) ~ ", variables))
+    
     args$data<-train
     args$method<-"class"
     # computing the decision tree
@@ -60,6 +58,7 @@ shinyServer(function(input, output) {
     toTest$Pclass<-factor(toTest$Pclass, levels=c(1,2,3), labels=c("First class", "Second class", "Third class"))
     #fit is shared bw the "did he survive" and "decision tree" panels
     Prediction <- predict(fit(), toTest, type="class")
+    write.csv(Prediction, "prediction.csv")
     return(as.character(Prediction))
   })
 })
