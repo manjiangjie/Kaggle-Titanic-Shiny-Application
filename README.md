@@ -1,4 +1,4 @@
-CSX460 Project: Kaggle Titanic
+CSX460 Project: Kaggle Titanic Shiny Application
 
 Jiangjie Man (Jack)
 
